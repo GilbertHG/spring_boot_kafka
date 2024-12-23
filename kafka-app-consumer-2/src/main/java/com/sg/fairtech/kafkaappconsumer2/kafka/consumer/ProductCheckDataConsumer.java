@@ -16,7 +16,7 @@ public class ProductCheckDataConsumer {
     @Autowired
     ProductService productService;
 
-    @KafkaListener(topics = "check_data", groupId = "group_product_request_check_data_2")
+    @KafkaListener(topics = "check_data", groupId = "group_product_check_data_2")
     public void consume(String productJsonString) throws Exception {
         ProductKafkaRequest productKafkaRequest = ProductKafkaConverter.convertStringToProductKafkaRequest(productJsonString);
 

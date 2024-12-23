@@ -21,7 +21,7 @@ public class ProductRequestCheckDataConsumer {
     @Autowired
     ProductCheckDataProducer productCheckDataProducer;
 
-    @KafkaListener(topics = "request_check_data", groupId = "group_product_check_data_1")
+    @KafkaListener(topics = "request_check_data", groupId = "group_product_request_check_data_1")
     public void consume(String productJsonString) throws Exception {
         ProductKafkaRequest productKafkaRequest = ProductKafkaConverter.convertStringToProductKafkaRequest(productJsonString);
         TransactionStateEnum requestMethod = productKafkaRequest.getRequestMethod();
