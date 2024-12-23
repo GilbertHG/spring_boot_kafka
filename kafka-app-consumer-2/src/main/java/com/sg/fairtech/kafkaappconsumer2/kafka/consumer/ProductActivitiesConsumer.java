@@ -31,7 +31,7 @@ public class ProductActivitiesConsumer {
             if (requestMethod == TransactionStateEnum.CREATE) {
                 productService.saveProduct(productRequest);
             } else {
-                productService.updateProductConsumerProductIdentfier(productKafkaRequest.getConsumerProductIdentifier(), productRequest, null);
+                productService.updateProduct(sku, productRequest, null);
             }
         } else if (requestMethod == TransactionStateEnum.DELETE) {
             productService.deleteProduct(sku);

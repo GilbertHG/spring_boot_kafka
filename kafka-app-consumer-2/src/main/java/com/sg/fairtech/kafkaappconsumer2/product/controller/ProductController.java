@@ -8,19 +8,25 @@ import com.sg.fairtech.kafkaappconsumer2.product.dto.ProductResponse;
 import com.sg.fairtech.kafkaappconsumer2.product.helper.TransactionStateEnum;
 import jakarta.transaction.Transactional;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/products")
 public class ProductController {
@@ -35,32 +41,55 @@ public class ProductController {
     public CollectionModel<EntityModel<ProductResponse>> index() {
 
         List<ProductResponse> productResponses = productService.getProductsWithValidSku();
-        List<EntityModel<ProductResponse>> products = productService.getProductsWithValidSku()
+
+        // List to collect all CompletableFuture instances
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+        productResponses.forEach(productResponse -> {
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    productService.publishProductToRequestCheckData(productResponse, TransactionStateEnum.GET);
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            futures.add(future);
+        });
+
+        // Wait for all futures to complete
+        CompletableFuture<Void> allDone = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        try {
+            allDone.get(); // Wait for completion
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException("Error waiting for Kafka processing to complete", e);
+        }
+
+        List<ProductResponse> productResponsesLatest = productService.getProductsWithValidSku();
+        List<EntityModel<ProductResponse>> productsLatest = productResponsesLatest
                 .stream()
                 .map(assembler::toModel)
                 .collect(Collectors.toList());
 
-        productResponses.forEach( productResponse -> {
-            try {
-                productService.publishProductToRequestCheckData(productResponse, TransactionStateEnum.GET);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        return CollectionModel.of(products, linkTo(methodOn(ProductController.class).index()).withSelfRel());
+        return CollectionModel.of(productsLatest, linkTo(methodOn(ProductController.class).index()).withSelfRel());
     }
 
     @GetMapping("/{sku}")
     public EntityModel<ProductResponse> getProduct(@PathVariable String sku) {
         ProductResponse productResponse = productService.getProductBySku(sku);
-        try {
-            productService.publishProductToRequestCheckData(productResponse, TransactionStateEnum.GET);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
 
-        return assembler.toModel(productResponse);
+        // Fire-and-forget Kafka publish
+        CompletableFuture.runAsync(() -> {
+            try {
+                productService.publishProductToRequestCheckData(productResponse, TransactionStateEnum.GET);
+            } catch (JsonProcessingException e) {
+                // Log the error instead of throwing an exception
+                log.error("Error publishing to Kafka: " + e.getMessage());
+            }
+        });
+
+        ProductResponse productResponseLatest = productService.getProductBySku(sku);
+
+        return assembler.toModel(productResponseLatest);
     }
 
     @Transactional

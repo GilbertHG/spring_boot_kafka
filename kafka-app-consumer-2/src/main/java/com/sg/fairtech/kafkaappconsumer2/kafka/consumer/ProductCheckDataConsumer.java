@@ -32,7 +32,7 @@ public class ProductCheckDataConsumer {
             Long currentProductVersion = currentProduct.getVersion();
             Long productFromKafkaVersion = productKafkaRequest.getVersion();
             if (productFromKafkaVersion > currentProductVersion) currentProductVersion = productFromKafkaVersion;
-            productService.updateProduct(productRequest.getSku(), productRequest, currentProductVersion);
+            productService.updateProductConsumerProductIdentfier(productKafkaRequest.getConsumerProductIdentifier(), productRequest, currentProductVersion);
         } else {
             productService.saveProduct(productRequest);
         }
