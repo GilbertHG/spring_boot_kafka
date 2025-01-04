@@ -46,7 +46,7 @@ public class KafkaConfig {
         config.put(ConsumerConfig.GROUP_ID_CONFIG, "group_id");
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest"); // Consume only new messages
+        config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"); // Consume earliest messages
         return new DefaultKafkaConsumerFactory<>(config);
     }
 

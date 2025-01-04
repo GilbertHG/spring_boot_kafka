@@ -17,7 +17,6 @@ public class SyncProducts {
     ProductService productService;
 
     public void syncProducts() {
-        List<ProductResponse> test = productService.getAllProducts();
         productService.getAllProducts().forEach(productResponse -> {
             try {
                 productService.publishProductToRequestCheckData(productResponse, TransactionStateEnum.GET);
